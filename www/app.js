@@ -293,7 +293,7 @@ function selectMode(mode) {
 function cycleMode() {
   if (!isPoweredOn) return;
   if (!currentMode) {
-    selectMode(modeOrder);
+    selectMode(modeOrder[0]);
     return;
   }
   const idx = modeOrder.indexOf(currentMode);
@@ -662,7 +662,8 @@ function updateVolumeUI(val) {
   document.querySelectorAll('.vol-readout').forEach(el => {
     el.innerText = pct + '%';
   });
-  document.getElementById('meterPercent').innerText = pct + '%';
+  const meterPercent = document.getElementById('meterPercent');
+  if (meterPercent) meterPercent.innerText = pct + '%';
 
   const activeCount = Math.round(currentVolume * 10);
   document.querySelectorAll('.meter-seg').forEach((seg, idx) => {
@@ -676,18 +677,52 @@ function updateVolumeUI(val) {
 updateVolumeUI(1.0);
 
 document.querySelectorAll('.vol-knob-el').forEach(knob => {
-  knob.addEventListener('mousedown', (e) => { draggingVol = true; volStartY = e.clientY; volStartVal = currentVolume; });
-  knob.addEventListener('touchstart', (e) => { e.preventDefault(); draggingVol = true; volStartY = e.touches.clientY; volStartVal = currentVolume; }, { passive: false });
+  knob.addEventListener('mousedown', (e) => {
+    draggingVol = true;
+    volStartY = e.clientY;
+    volStartVal = currentVolume;
+  });
+
+  knob.addEventListener('touchstart', (e) => {
+    if (e.cancelable) e.preventDefault();
+    if (e.touches && e.touches.length > 0) {
+      draggingVol = true;
+      volStartY = e.touches[0].clientY;
+      volStartVal = currentVolume;
+    }
+  }, { passive: false });
+
   knob.addEventListener('wheel', (e) => {
     e.preventDefault();
     updateVolumeUI(currentVolume + (e.deltaY < 0 ? 0.05 : -0.05));
-  });
+  }, { passive: false });
 });
 
-window.addEventListener('mousemove', (e) => { if (draggingVol) updateVolumeUI(volStartVal + (volStartY - e.clientY) / 140); });
-window.addEventListener('mouseup', () => { draggingVol = false; });
-window.addEventListener('touchmove', (e) => { if (draggingVol) updateVolumeUI(volStartVal + (volStartY - e.touches.clientY) / 140); });
-window.addEventListener('touchend', () => { draggingVol = false; });
+window.addEventListener('mousemove', (e) => {
+  if (draggingVol) {
+    updateVolumeUI(volStartVal + (volStartY - e.clientY) / 140);
+  }
+});
+
+window.addEventListener('mouseup', () => {
+  draggingVol = false;
+});
+
+window.addEventListener('touchmove', (e) => {
+  if (!draggingVol) return;
+  if (e.cancelable) e.preventDefault();
+  if (e.touches && e.touches.length > 0) {
+    updateVolumeUI(volStartVal + (volStartY - e.touches[0].clientY) / 140);
+  }
+}, { passive: false });
+
+window.addEventListener('touchend', () => {
+  draggingVol = false;
+});
+
+window.addEventListener('touchcancel', () => {
+  draggingVol = false;
+});
 
 document.addEventListener('pointerdown', initAudioCtx, { once: true });
 preloadUnitSounds(currentUnit);
